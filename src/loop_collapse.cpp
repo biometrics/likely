@@ -198,8 +198,13 @@ struct LoopCollapse : public LoopPass
                             a = maybeA;
                             u = maybeU;
                         }
-                    } else if (isa<Constant>(notB)) {
-                        a = notB;
+                    } else if (ConstantInt *const maybeScaledA = dyn_cast<ConstantInt>(notB)) {
+                        if (ConstantInt *const constantX = dyn_cast<ConstantInt>(child.exitVal)) {
+                            const int64_t sa = maybeScaledA->getSExtValue();
+                            const int64_t x = constantX->getSExtValue();
+                            if (sa % x == 0)
+                                a = ConstantInt::get(maybeScaledA->getType(), sa / x);
+                        }
                     }
                 }
 
