@@ -98,8 +98,8 @@ x_body34:                                         ; preds = %y_body31, %exit
   br label %loop38.preheader
 
 loop38.preheader:                                 ; preds = %x_body34, %exit40
-  %37 = phi i32 [ %59, %exit40 ], [ 0, %x_body34 ]
-  %38 = phi double [ %56, %exit40 ], [ 0.000000e+00, %x_body34 ]
+  %37 = phi i32 [ %57, %exit40 ], [ 0, %x_body34 ]
+  %38 = phi double [ %54, %exit40 ], [ 0.000000e+00, %x_body34 ]
   %39 = zext i32 %37 to i64
   %40 = add nuw nsw i64 %39, %y33
   %41 = mul nuw nsw i64 %40, %mat_y_step
@@ -107,9 +107,30 @@ loop38.preheader:                                 ; preds = %x_body34, %exit40
   %43 = mul nuw nsw i64 %39, %kernel_y_step
   br label %true_entry39
 
+true_entry39:                                     ; preds = %loop38.preheader, %true_entry39
+  %44 = phi double [ %54, %true_entry39 ], [ %38, %loop38.preheader ]
+  %45 = phi i32 [ %55, %true_entry39 ], [ 0, %loop38.preheader ]
+  %46 = zext i32 %45 to i64
+  %47 = add i64 %42, %46
+  %48 = getelementptr double, double* %20, i64 %47
+  %49 = load double, double* %48, align 8, !llvm.mem.parallel_loop_access !1
+  %50 = add nuw nsw i64 %46, %43
+  %51 = getelementptr %f64Matrix, %f64Matrix* %1, i64 0, i32 6, i64 %50
+  %52 = load double, double* %51, align 8, !llvm.mem.parallel_loop_access !1
+  %53 = fmul fast double %52, %49
+  %54 = fadd fast double %53, %44
+  %55 = add nuw nsw i32 %45, 1
+  %56 = icmp eq i32 %55, %width
+  br i1 %56, label %exit40, label %true_entry39
+
+exit40:                                           ; preds = %true_entry39
+  %57 = add nuw nsw i32 %37, 1
+  %58 = icmp eq i32 %57, %height
+  br i1 %58, label %exit, label %loop38.preheader
+
 exit:                                             ; preds = %exit40
-  %44 = getelementptr double, double* %34, i64 %36
-  store double %56, double* %44, align 8, !llvm.mem.parallel_loop_access !1
+  %59 = getelementptr double, double* %34, i64 %36
+  store double %54, double* %59, align 8, !llvm.mem.parallel_loop_access !1
   %x_increment41 = add nuw nsw i64 %x36, 1
   %x_postcondition42 = icmp eq i64 %x_increment41, %src_y_step
   br i1 %x_postcondition42, label %x_exit35, label %x_body34
@@ -121,30 +142,9 @@ x_exit35:                                         ; preds = %exit
 
 y_exit32:                                         ; preds = %x_exit35
   %dst = bitcast %u0Matrix* %32 to %f64Matrix*
-  %45 = bitcast %u0Matrix* %14 to i8*
-  call void @likely_release_mat(i8* %45) #0
+  %60 = bitcast %u0Matrix* %14 to i8*
+  call void @likely_release_mat(i8* %60) #0
   ret %f64Matrix* %dst
-
-true_entry39:                                     ; preds = %loop38.preheader, %true_entry39
-  %46 = phi double [ %56, %true_entry39 ], [ %38, %loop38.preheader ]
-  %47 = phi i32 [ %57, %true_entry39 ], [ 0, %loop38.preheader ]
-  %48 = zext i32 %47 to i64
-  %49 = add i64 %42, %48
-  %50 = getelementptr double, double* %20, i64 %49
-  %51 = load double, double* %50, align 8, !llvm.mem.parallel_loop_access !1
-  %52 = add nuw nsw i64 %48, %43
-  %53 = getelementptr %f64Matrix, %f64Matrix* %1, i64 0, i32 6, i64 %52
-  %54 = load double, double* %53, align 8, !llvm.mem.parallel_loop_access !1
-  %55 = fmul fast double %54, %51
-  %56 = fadd fast double %55, %46
-  %57 = add nuw nsw i32 %47, 1
-  %58 = icmp eq i32 %57, %width
-  br i1 %58, label %exit40, label %true_entry39
-
-exit40:                                           ; preds = %true_entry39
-  %59 = add nuw nsw i32 %37, 1
-  %60 = icmp eq i32 %59, %height
-  br i1 %60, label %exit, label %loop38.preheader
 }
 
 ; Function Attrs: argmemonly nounwind

@@ -97,21 +97,13 @@ y_body:                                           ; preds = %x_exit, %entry
   %11 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %y_body, %Flow6
-  %x = phi i64 [ %x_increment, %Flow6 ], [ 0, %y_body ]
+x_body:                                           ; preds = %y_body, %exit
+  %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
   %12 = icmp ugt i64 %y, %x
-  br i1 %12, label %Flow6, label %loop.preheader
+  br i1 %12, label %exit, label %loop.preheader
 
 loop.preheader:                                   ; preds = %x_body
   br i1 %10, label %exit4, label %true_entry3
-
-x_exit:                                           ; preds = %Flow6
-  %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %2
-  br i1 %y_postcondition, label %y_exit, label %y_body
-
-y_exit:                                           ; preds = %x_exit
-  ret void
 
 true_entry3:                                      ; preds = %loop.preheader, %true_entry3
   %13 = phi i32 [ %27, %true_entry3 ], [ 0, %loop.preheader ]
@@ -132,11 +124,6 @@ true_entry3:                                      ; preds = %loop.preheader, %tr
   %28 = icmp eq i32 %27, %8
   br i1 %28, label %exit4, label %true_entry3
 
-Flow6:                                            ; preds = %x_body, %exit4
-  %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body
-
 exit4:                                            ; preds = %true_entry3, %loop.preheader
   %.lcssa = phi double [ 0.000000e+00, %loop.preheader ], [ %26, %true_entry3 ]
   %29 = add nuw nsw i64 %x, %11
@@ -147,7 +134,20 @@ exit4:                                            ; preds = %true_entry3, %loop.
   %33 = add nuw nsw i64 %32, %y
   %34 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %33
   store float %31, float* %34, align 4, !llvm.mem.parallel_loop_access !3
-  br label %Flow6
+  br label %exit
+
+exit:                                             ; preds = %exit4, %x_body
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
+  br i1 %x_postcondition, label %x_exit, label %x_body
+
+x_exit:                                           ; preds = %exit
+  %y_increment = add nuw nsw i64 %y, 1
+  %y_postcondition = icmp eq i64 %y_increment, %2
+  br i1 %y_postcondition, label %y_exit, label %y_body
+
+y_exit:                                           ; preds = %x_exit
+  ret void
 }
 
 ; Function Attrs: nounwind

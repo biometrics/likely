@@ -43,8 +43,8 @@ x_body:                                           ; preds = %y_body, %exit
   br i1 %17, label %exit, label %loop6.preheader
 
 loop6.preheader:                                  ; preds = %x_body, %exit8
-  %19 = phi i32 [ %42, %exit8 ], [ 0, %x_body ]
-  %20 = phi float [ %41, %exit8 ], [ 0.000000e+00, %x_body ]
+  %19 = phi i32 [ %40, %exit8 ], [ 0, %x_body ]
+  %20 = phi float [ %39, %exit8 ], [ 0.000000e+00, %x_body ]
   br i1 %16, label %exit8, label %true_entry7.lr.ph
 
 true_entry7.lr.ph:                                ; preds = %loop6.preheader
@@ -55,11 +55,33 @@ true_entry7.lr.ph:                                ; preds = %loop6.preheader
   %25 = mul nuw nsw i64 %21, %templ_y_step
   br label %true_entry7
 
+true_entry7:                                      ; preds = %true_entry7.lr.ph, %true_entry7
+  %26 = phi float [ %36, %true_entry7 ], [ %20, %true_entry7.lr.ph ]
+  %27 = phi i32 [ %37, %true_entry7 ], [ 0, %true_entry7.lr.ph ]
+  %28 = zext i32 %27 to i64
+  %29 = add i64 %24, %28
+  %30 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %29
+  %31 = load float, float* %30, align 4, !llvm.mem.parallel_loop_access !1
+  %32 = add nuw nsw i64 %28, %25
+  %33 = getelementptr %f32Matrix, %f32Matrix* %8, i64 0, i32 6, i64 %32
+  %34 = load float, float* %33, align 4, !llvm.mem.parallel_loop_access !1
+  %35 = fmul fast float %34, %31
+  %36 = fadd fast float %35, %26
+  %37 = add nuw nsw i32 %27, 1
+  %38 = icmp eq i32 %37, %10
+  br i1 %38, label %exit8, label %true_entry7
+
+exit8:                                            ; preds = %true_entry7, %loop6.preheader
+  %39 = phi float [ %20, %loop6.preheader ], [ %36, %true_entry7 ]
+  %40 = add nuw nsw i32 %19, 1
+  %41 = icmp eq i32 %40, %12
+  br i1 %41, label %exit, label %loop6.preheader
+
 exit:                                             ; preds = %exit8, %x_body
-  %.lcssa9 = phi float [ 0.000000e+00, %x_body ], [ %41, %exit8 ]
-  %26 = add nuw nsw i64 %x, %18
-  %27 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %26
-  store float %.lcssa9, float* %27, align 4, !llvm.mem.parallel_loop_access !1
+  %.lcssa9 = phi float [ 0.000000e+00, %x_body ], [ %39, %exit8 ]
+  %42 = add nuw nsw i64 %x, %18
+  %43 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %42
+  store float %.lcssa9, float* %43, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -71,28 +93,6 @@ x_exit:                                           ; preds = %exit
 
 y_exit:                                           ; preds = %x_exit
   ret void
-
-true_entry7:                                      ; preds = %true_entry7.lr.ph, %true_entry7
-  %28 = phi float [ %38, %true_entry7 ], [ %20, %true_entry7.lr.ph ]
-  %29 = phi i32 [ %39, %true_entry7 ], [ 0, %true_entry7.lr.ph ]
-  %30 = zext i32 %29 to i64
-  %31 = add i64 %24, %30
-  %32 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %31
-  %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1
-  %34 = add nuw nsw i64 %30, %25
-  %35 = getelementptr %f32Matrix, %f32Matrix* %8, i64 0, i32 6, i64 %34
-  %36 = load float, float* %35, align 4, !llvm.mem.parallel_loop_access !1
-  %37 = fmul fast float %36, %33
-  %38 = fadd fast float %37, %28
-  %39 = add nuw nsw i32 %29, 1
-  %40 = icmp eq i32 %39, %10
-  br i1 %40, label %exit8, label %true_entry7
-
-exit8:                                            ; preds = %true_entry7, %loop6.preheader
-  %41 = phi float [ %20, %loop6.preheader ], [ %38, %true_entry7 ]
-  %42 = add nuw nsw i32 %19, 1
-  %43 = icmp eq i32 %42, %12
-  br i1 %43, label %exit, label %loop6.preheader
 }
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)

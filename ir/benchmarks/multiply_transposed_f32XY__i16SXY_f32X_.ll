@@ -78,56 +78,56 @@ y_body33:                                         ; preds = %x_exit37, %y_exit16
   %24 = mul nuw nsw i64 %y35, %mat_y_step
   br label %x_body36
 
-x_body36:                                         ; preds = %y_body33, %Flow
-  %x38 = phi i64 [ %x_increment41, %Flow ], [ 0, %y_body33 ]
+x_body36:                                         ; preds = %y_body33, %exit
+  %x38 = phi i64 [ %x_increment41, %exit ], [ 0, %y_body33 ]
   %25 = icmp ugt i64 %y35, %x38
-  br i1 %25, label %Flow, label %true_entry39
+  br i1 %25, label %exit, label %true_entry39
 
-x_exit37:                                         ; preds = %Flow
+true_entry39:                                     ; preds = %x_body36, %true_entry39
+  %26 = phi i32 [ %40, %true_entry39 ], [ 0, %x_body36 ]
+  %27 = phi double [ %39, %true_entry39 ], [ 0.000000e+00, %x_body36 ]
+  %28 = zext i32 %26 to i64
+  %29 = mul nuw nsw i64 %28, %mat_y_step
+  %30 = add nuw nsw i64 %29, %x38
+  %31 = getelementptr float, float* %7, i64 %30
+  %32 = load float, float* %31, align 4, !llvm.mem.parallel_loop_access !3
+  %33 = fpext float %32 to double
+  %34 = add nuw nsw i64 %29, %y35
+  %35 = getelementptr float, float* %7, i64 %34
+  %36 = load float, float* %35, align 4, !llvm.mem.parallel_loop_access !3
+  %37 = fpext float %36 to double
+  %38 = fmul fast double %37, %33
+  %39 = fadd fast double %38, %27
+  %40 = add nuw nsw i32 %26, 1
+  %41 = icmp eq i32 %40, %rows
+  br i1 %41, label %exit40, label %true_entry39
+
+exit40:                                           ; preds = %true_entry39
+  %42 = add nuw nsw i64 %x38, %24
+  %43 = getelementptr float, float* %23, i64 %42
+  %44 = fptrunc double %39 to float
+  store float %44, float* %43, align 4, !llvm.mem.parallel_loop_access !3
+  %45 = mul nuw nsw i64 %x38, %mat_y_step
+  %46 = add nuw nsw i64 %45, %y35
+  %47 = getelementptr float, float* %23, i64 %46
+  store float %44, float* %47, align 4, !llvm.mem.parallel_loop_access !3
+  br label %exit
+
+exit:                                             ; preds = %exit40, %x_body36
+  %x_increment41 = add nuw nsw i64 %x38, 1
+  %x_postcondition42 = icmp eq i64 %x_increment41, %mat_y_step
+  br i1 %x_postcondition42, label %x_exit37, label %x_body36
+
+x_exit37:                                         ; preds = %exit
   %y_increment43 = add nuw nsw i64 %y35, 1
   %y_postcondition44 = icmp eq i64 %y_increment43, %mat_y_step
   br i1 %y_postcondition44, label %y_exit34, label %y_body33
 
 y_exit34:                                         ; preds = %x_exit37
   %dst = bitcast %u0Matrix* %21 to %f32Matrix*
-  %26 = bitcast %u0Matrix* %4 to i8*
-  call void @likely_release_mat(i8* %26) #1
+  %48 = bitcast %u0Matrix* %4 to i8*
+  call void @likely_release_mat(i8* %48) #1
   ret %f32Matrix* %dst
-
-true_entry39:                                     ; preds = %x_body36, %true_entry39
-  %27 = phi i32 [ %41, %true_entry39 ], [ 0, %x_body36 ]
-  %28 = phi double [ %40, %true_entry39 ], [ 0.000000e+00, %x_body36 ]
-  %29 = zext i32 %27 to i64
-  %30 = mul nuw nsw i64 %29, %mat_y_step
-  %31 = add nuw nsw i64 %30, %x38
-  %32 = getelementptr float, float* %7, i64 %31
-  %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !3
-  %34 = fpext float %33 to double
-  %35 = add nuw nsw i64 %30, %y35
-  %36 = getelementptr float, float* %7, i64 %35
-  %37 = load float, float* %36, align 4, !llvm.mem.parallel_loop_access !3
-  %38 = fpext float %37 to double
-  %39 = fmul fast double %38, %34
-  %40 = fadd fast double %39, %28
-  %41 = add nuw nsw i32 %27, 1
-  %42 = icmp eq i32 %41, %rows
-  br i1 %42, label %exit40, label %true_entry39
-
-Flow:                                             ; preds = %x_body36, %exit40
-  %x_increment41 = add nuw nsw i64 %x38, 1
-  %x_postcondition42 = icmp eq i64 %x_increment41, %mat_y_step
-  br i1 %x_postcondition42, label %x_exit37, label %x_body36
-
-exit40:                                           ; preds = %true_entry39
-  %43 = add nuw nsw i64 %x38, %24
-  %44 = getelementptr float, float* %23, i64 %43
-  %45 = fptrunc double %40 to float
-  store float %45, float* %44, align 4, !llvm.mem.parallel_loop_access !3
-  %46 = mul nuw nsw i64 %x38, %mat_y_step
-  %47 = add nuw nsw i64 %46, %y35
-  %48 = getelementptr float, float* %23, i64 %47
-  store float %45, float* %48, align 4, !llvm.mem.parallel_loop_access !3
-  br label %Flow
 }
 
 declare void @likely_release_mat(i8* noalias nocapture)

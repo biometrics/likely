@@ -138,21 +138,6 @@ true_entry7.lr.ph:                                ; preds = %loop6.preheader
   %27 = mul nuw nsw i64 %23, %kernel_y_step
   br label %true_entry7
 
-exit:                                             ; preds = %exit8, %x_body
-  %.lcssa9 = phi float [ 0.000000e+00, %x_body ], [ %41, %exit8 ]
-  store float %.lcssa9, float* %20, align 4, !llvm.mem.parallel_loop_access !3
-  %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body
-
-x_exit:                                           ; preds = %exit
-  %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %2
-  br i1 %y_postcondition, label %y_exit, label %y_body
-
-y_exit:                                           ; preds = %x_exit
-  ret void
-
 true_entry7:                                      ; preds = %true_entry7.lr.ph, %true_entry7
   %28 = phi float [ %38, %true_entry7 ], [ %22, %true_entry7.lr.ph ]
   %29 = phi i32 [ %39, %true_entry7 ], [ 0, %true_entry7.lr.ph ]
@@ -174,6 +159,21 @@ exit8:                                            ; preds = %true_entry7, %loop6
   %42 = add nuw nsw i32 %21, 1
   %43 = icmp eq i32 %42, %12
   br i1 %43, label %exit, label %loop6.preheader
+
+exit:                                             ; preds = %exit8, %x_body
+  %.lcssa9 = phi float [ 0.000000e+00, %x_body ], [ %41, %exit8 ]
+  store float %.lcssa9, float* %20, align 4, !llvm.mem.parallel_loop_access !3
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
+  br i1 %x_postcondition, label %x_exit, label %x_body
+
+x_exit:                                           ; preds = %exit
+  %y_increment = add nuw nsw i64 %y, 1
+  %y_postcondition = icmp eq i64 %y_increment, %2
+  br i1 %y_postcondition, label %y_exit, label %y_body
+
+y_exit:                                           ; preds = %x_exit
+  ret void
 }
 
 ; Function Attrs: nounwind

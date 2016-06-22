@@ -3026,6 +3026,7 @@ class kernelExpression : public LikelyOperator
         kernelArguments.clear();
 
         if (axis) {
+            builder.GetInsertBlock()->moveAfter(&axis->exit->getParent()->getBasicBlockList().back());
             axis->exit->moveAfter(builder.GetInsertBlock());
             axis->close(builder);
             if (node)

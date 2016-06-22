@@ -34,14 +34,6 @@ true_entry:                                       ; preds = %true_entry.lr.ph, %
   %16 = icmp eq i32 %15, %6
   br i1 %16, label %exit4, label %true_entry3
 
-exit:                                             ; preds = %loop.backedge, %y_body
-  %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %2
-  br i1 %y_postcondition, label %y_exit, label %y_body
-
-y_exit:                                           ; preds = %exit
-  ret void
-
 true_entry3:                                      ; preds = %true_entry, %true_entry3
   %17 = phi i32 [ %26, %true_entry3 ], [ %15, %true_entry ]
   %18 = phi i32 [ %25, %true_entry3 ], [ %10, %true_entry ]
@@ -73,6 +65,14 @@ true_entry7:                                      ; preds = %exit4
   store float %32, float* %13, align 4, !llvm.mem.parallel_loop_access !1
   store float %14, float* %31, align 4, !llvm.mem.parallel_loop_access !1
   br label %loop.backedge
+
+exit:                                             ; preds = %loop.backedge, %y_body
+  %y_increment = add nuw nsw i64 %y, 1
+  %y_postcondition = icmp eq i64 %y_increment, %2
+  br i1 %y_postcondition, label %y_exit, label %y_body
+
+y_exit:                                           ; preds = %exit
+  ret void
 }
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
