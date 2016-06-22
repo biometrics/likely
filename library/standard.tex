@@ -1363,7 +1363,7 @@ iter-range :=
 
 iter :=
   (expr end) :->
-    (iter-range expr 0 end)
+    (iter-range expr (end.type 0) end)
 
 iter-reverse-range :=
   (expr end start) :->
@@ -1371,7 +1371,7 @@ iter-reverse-range :=
 
 iter-reverse :=
   (expr end) :->
-    (iter-reverse-range expr end 0)
+    (iter-reverse-range expr end (end.type 0))
 
 iter-elements :=
   (mat expr) :->

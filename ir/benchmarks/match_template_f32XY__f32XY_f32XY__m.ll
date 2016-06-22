@@ -48,7 +48,7 @@ loop6.preheader:                                  ; preds = %x_body, %exit8
   br i1 %16, label %exit8, label %true_entry7.lr.ph
 
 true_entry7.lr.ph:                                ; preds = %loop6.preheader
-  %21 = sext i32 %19 to i64
+  %21 = zext i32 %19 to i64
   %22 = add nuw nsw i64 %21, %y
   %23 = mul nuw nsw i64 %22, %src_y_step
   %24 = add i64 %23, %x
@@ -75,7 +75,7 @@ y_exit:                                           ; preds = %x_exit
 true_entry7:                                      ; preds = %true_entry7.lr.ph, %true_entry7
   %28 = phi float [ %38, %true_entry7 ], [ %20, %true_entry7.lr.ph ]
   %29 = phi i32 [ %39, %true_entry7 ], [ 0, %true_entry7.lr.ph ]
-  %30 = sext i32 %29 to i64
+  %30 = zext i32 %29 to i64
   %31 = add i64 %24, %30
   %32 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %31
   %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1

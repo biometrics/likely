@@ -21,7 +21,7 @@ y_body:                                           ; preds = %exit, %entry
 
 true_entry:                                       ; preds = %y_body, %loop.backedge
   %5 = phi i32 [ %10, %loop.backedge ], [ 0, %y_body ]
-  %6 = sext i32 %5 to i64
+  %6 = zext i32 %5 to i64
   %7 = add nuw nsw i64 %6, %4
   %8 = getelementptr %f64Matrix, %f64Matrix* %0, i64 0, i32 6, i64 %7
   %9 = load double, double* %8, align 8, !llvm.mem.parallel_loop_access !1
@@ -64,7 +64,7 @@ loop.backedge:                                    ; preds = %exit5, %true_entry8
   br i1 %11, label %exit, label %true_entry
 
 true_entry8:                                      ; preds = %exit5
-  %27 = sext i32 %.lcssa to i64
+  %27 = zext i32 %.lcssa to i64
   %28 = add nuw nsw i64 %27, %4
   %29 = getelementptr %f64Matrix, %f64Matrix* %0, i64 0, i32 6, i64 %28
   %30 = load double, double* %29, align 8, !llvm.mem.parallel_loop_access !1

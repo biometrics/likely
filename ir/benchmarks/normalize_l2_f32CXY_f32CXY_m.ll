@@ -62,7 +62,7 @@ entry:
 true_entry:                                       ; preds = %true_entry, %entry
   %6 = phi i32 [ 0, %entry ], [ %14, %true_entry ]
   %7 = phi double [ 0.000000e+00, %entry ], [ %13, %true_entry ]
-  %8 = sext i32 %6 to i64
+  %8 = zext i32 %6 to i64
   %9 = getelementptr %f32Matrix, %f32Matrix* %0, i64 0, i32 6, i64 %8
   %10 = load float, float* %9, align 4
   %11 = fpext float %10 to double
