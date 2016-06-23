@@ -158,6 +158,7 @@ struct LikelyContext : public likely_settings
             PM->add(createLICMPass());
             PM->add(createCFGSimplificationPass());
             PM->add(createInstructionCombiningPass());
+            PM->add(createStraightLineStrengthReducePass());
 
             // Memory management
             PM->add(createStructurizeCFGPass()); // Help our memory manager by creating single-entry/single-exit regions
@@ -175,6 +176,7 @@ struct LikelyContext : public likely_settings
                 PM->add(createLoopVectorizePass()); // Loop vectorization with unrolling
                 PM->add(createBBVectorizePass()); // Fallback to vectorizing the entire block
                 PM->add(createLoopUnrollPass()); // Unroll loops that couldn't be vectorized
+                PM->add(createStraightLineStrengthReducePass()); // Suggested after loop unrolling
                 PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
                 PM->add(createLoadCombinePass()); // Combine adjacent loads
                 PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
