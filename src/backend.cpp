@@ -144,6 +144,7 @@ struct LikelyContext : public likely_settings
 
             // Loop optimizations
             PM->add(createLoopRotatePass()); // Canonicalization
+            PM->add(createLCSSAPass());
             PM->add(createLICMPass());
             PM->add(createIndVarSimplifyPass());
             PM->add(createLoopIdiomPass());
