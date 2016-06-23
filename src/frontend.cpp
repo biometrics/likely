@@ -720,11 +720,16 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "image"          )) return likely_image;
     if (!strcmp(str, "video-grayscale")) return likely_video_grayscale;
     if (!strcmp(str, "video"          )) return likely_video;
+    if (!strcmp(str, "uchar"          )) return likely_uchar;
+    if (!strcmp(str, "ushort"         )) return likely_ushort;
+    if (!strcmp(str, "uint"           )) return likely_uint;
+    if (!strcmp(str, "ulong"          )) return likely_ulong;
+    if (!strcmp(str, "ulonglong"      )) return likely_ulonglong;
     if (!strcmp(str, "char"           )) return likely_char;
     if (!strcmp(str, "short"          )) return likely_short;
     if (!strcmp(str, "int"            )) return likely_int;
     if (!strcmp(str, "long"           )) return likely_long;
-    if (!strcmp(str, "long-long"      )) return likely_long_long;
+    if (!strcmp(str, "longlong"       )) return likely_longlong;
     if (!strcmp(str, "bool"           )) return likely_bool;
     if (!strcmp(str, "size_t"         )) return likely_size_t;
     if (!strcmp(str, "ptrdiff_t"      )) return likely_ptrdiff_t;
