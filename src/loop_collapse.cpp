@@ -285,6 +285,18 @@ struct LoopCollapse : public LoopPass
                 return false;
         }
 
+        // There ought to be no other phi nodes in the child loop
+        for (const Instruction &instruction : *child.header) {
+            const PHINode *const phi = dyn_cast<PHINode>(&instruction);
+            if (!phi)
+                break;
+
+            if (phi == child.IV)
+                continue;
+
+            return false;
+        }
+
         // Hoist the child's exit value outside of the parent loop
         {
             bool changed;
