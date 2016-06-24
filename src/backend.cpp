@@ -159,6 +159,7 @@ struct LikelyContext : public likely_settings
             PM->add(createCFGSimplificationPass());
             PM->add(createInstructionCombiningPass());
             PM->add(createStraightLineStrengthReducePass());
+            PM->add(createSeparateConstOffsetFromGEPPass());
 
             // Memory management
             PM->add(createStructurizeCFGPass()); // Help our memory manager by creating single-entry/single-exit regions
