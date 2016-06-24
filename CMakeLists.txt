@@ -76,6 +76,7 @@ if(NOT MSVC)
 endif()
 
 # Build Polly using the same compiler flags
+set(LLVM_INSTALL_ROOT "${PROJECT_SOURCE_DIR}/llvm")
 add_subdirectory(polly)
 include_directories(${PROJECT_SOURCE_DIR}/polly/include
                     ${PROJECT_BINARY_DIR}/polly/include)
