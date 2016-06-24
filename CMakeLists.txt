@@ -27,7 +27,7 @@ else()
   endif()
   set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
   add_subdirectory(llvm EXCLUDE_FROM_ALL)
-  set(CMAKE_MODULE_PATH "${PROJECT_BINARY_DIR}/llvm/share/llvm/cmake/")
+  set(CMAKE_MODULE_PATH "${PROJECT_BINARY_DIR}/llvm/cmake/modules/CMakeFiles/")
   include(LLVMConfig)
   include_directories(${PROJECT_SOURCE_DIR}/llvm/include
                       ${PROJECT_BINARY_DIR}/llvm/include)
