@@ -1243,7 +1243,7 @@ struct ConstantMat : public likely_expression
         inlinedMat->setConstant(true);
         inlinedMat->setInitializer(constantStruct);
         inlinedMat->setLinkage(GlobalVariable::PrivateLinkage);
-        inlinedMat->setUnnamedAddr(true);
+        inlinedMat->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
 
         value = builder.CreatePointerCast(inlinedMat, builder.module->context->toLLVM(m->type));
         builder.module->data[data] = value;

@@ -143,7 +143,8 @@ private:
             // At this point we have identified both the thunk and it's caller
             AllocaInst *const allocaInst = cast<AllocaInst>(cast<CastInst>(callInst->getOperand(1))->getOperand(0));
             const map<Value*, CallInst*> origins = getOrigins(*allocaInst->getParent()->getParent());
-            const DominatorTree dominatorTree = DominatorTreeAnalysis().run(F);
+            AnalysisManager<Function> dummyAMF;
+            const DominatorTree dominatorTree = DominatorTreeAnalysis().run(F, dummyAMF);
             const int numArgs = cast<StructType>(allocaInst->getType()->getElementType())->getNumElements();
 
             // Populate caller struct arguments
