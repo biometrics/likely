@@ -7,3 +7,6 @@
 [submodule "UseLATEX"]
 	path = UseLATEX
 	url = https://github.com/kmorel/UseLATEX.git
+[submodule "polly"]
+	path = polly
+	url = https://github.com/llvm-mirror/polly.git

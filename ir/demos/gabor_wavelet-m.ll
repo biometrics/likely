@@ -11,6 +11,9 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: nounwind
 define private void @likely_test_function_tmp_thunk0({ %f32Matrix*, i32, i32, float, float, float, float, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, i32, i32, float, float, float, float, float }, { %f32Matrix*, i32, i32, float, float, float, float, float }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, i32, i32, float, float, float, float, float }, { %f32Matrix*, i32, i32, float, float, float, float, float }* %0, i64 0, i32 1
@@ -35,8 +38,8 @@ entry:
   %22 = fdiv fast float 0x401921FB60000000, %16
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry.split
+  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %x_exit ]
   %23 = trunc i64 %y to i32
   %dy = sub i32 %23, %8
   %24 = sitofp i32 %dy to float
@@ -96,6 +99,9 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %f32Matrix* @likely_test_function(%u0Matrix** nocapture readonly) {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = bitcast %u0Matrix** %0 to %u32Matrix**
   %2 = load %u32Matrix*, %u32Matrix** %1, align 8
   %3 = getelementptr inbounds %u32Matrix, %u32Matrix* %2, i64 0, i32 6, i64 0

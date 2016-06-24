@@ -12,6 +12,9 @@ declare %u0Matrix* @likely_retain_mat(%u0Matrix* noalias nocapture) #0
 
 define %u8Matrix* @likely_test_function(%u0Matrix** nocapture readnone) {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = call %u0Matrix* @likely_retain_mat(%u0Matrix* bitcast (%u8Matrix_62500* @likely_inlined_mat_0 to %u0Matrix*))
   %2 = bitcast %u0Matrix* %1 to %u8Matrix*
   ret %u8Matrix* %2

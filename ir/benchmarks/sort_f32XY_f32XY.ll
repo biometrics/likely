@@ -6,6 +6,9 @@ source_filename = "likely"
 ; Function Attrs: norecurse nounwind
 define noalias %f32Matrix* @sort(%f32Matrix* noalias nocapture) #0 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 4
   %len = load i32, i32* %1, align 4, !range !0
   %2 = zext i32 %len to i64
@@ -14,8 +17,8 @@ entry:
   %src_y_step = zext i32 %columns to i64
   br label %y_body
 
-y_body:                                           ; preds = %exit, %entry
-  %y = phi i64 [ 0, %entry ], [ %y_increment, %exit ]
+y_body:                                           ; preds = %exit, %entry.split
+  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %exit ]
   %4 = mul nuw nsw i64 %y, %src_y_step
   br label %true_entry
 

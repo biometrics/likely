@@ -13,6 +13,9 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: norecurse nounwind
 define private void @normalize_l2_tmp_thunk0({ %f64Matrix*, %f64Matrix*, double }* noalias nocapture readonly, i64, i64) #2 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f64Matrix*, %f64Matrix*, double }, { %f64Matrix*, %f64Matrix*, double }* %0, i64 0, i32 0
   %4 = load %f64Matrix*, %f64Matrix** %3, align 8
   %5 = getelementptr inbounds { %f64Matrix*, %f64Matrix*, double }, { %f64Matrix*, %f64Matrix*, double }* %0, i64 0, i32 1
@@ -29,8 +32,8 @@ entry:
   %12 = mul i64 %11, %dst_x
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
+y_body:                                           ; preds = %y_body, %entry.split
+  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %y_body ]
   %13 = getelementptr %f64Matrix, %f64Matrix* %6, i64 0, i32 6, i64 %y
   %14 = load double, double* %13, align 8, !llvm.mem.parallel_loop_access !1
   %15 = fmul fast double %14, %8
@@ -49,6 +52,9 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 ; Function Attrs: nounwind
 define noalias %f64Matrix* @normalize_l2(%f64Matrix* noalias nocapture) #3 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %1, align 4, !range !0
   %2 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 3
@@ -59,9 +65,9 @@ entry:
   %5 = mul nuw nsw i32 %3, %rows
   br label %true_entry
 
-true_entry:                                       ; preds = %true_entry, %entry
-  %6 = phi i32 [ 0, %entry ], [ %13, %true_entry ]
-  %7 = phi double [ 0.000000e+00, %entry ], [ %12, %true_entry ]
+true_entry:                                       ; preds = %true_entry, %entry.split
+  %6 = phi i32 [ 0, %entry.split ], [ %13, %true_entry ]
+  %7 = phi double [ 0.000000e+00, %entry.split ], [ %12, %true_entry ]
   %8 = zext i32 %6 to i64
   %9 = getelementptr %f64Matrix, %f64Matrix* %0, i64 0, i32 6, i64 %8
   %10 = load double, double* %9, align 8

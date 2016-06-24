@@ -11,6 +11,9 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk0({ %f32Matrix*, i32 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, i32 }, { %f32Matrix*, i32 }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, i32 }, { %f32Matrix*, i32 }* %0, i64 0, i32 1
@@ -18,8 +21,8 @@ entry:
   %7 = sitofp i32 %6 to float
   br label %x_body
 
-x_body:                                           ; preds = %x_body, %entry
-  %x = phi i64 [ %1, %entry ], [ %x_increment, %x_body ]
+x_body:                                           ; preds = %x_body, %entry.split
+  %x = phi i64 [ %1, %entry.split ], [ %x_increment, %x_body ]
   %8 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %x
   store float %7, float* %8, align 4, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
@@ -35,14 +38,17 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 ; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk1({ %f32Matrix*, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, float }, { %f32Matrix*, float }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, float }, { %f32Matrix*, float }* %0, i64 0, i32 1
   %6 = load float, float* %5, align 4
   br label %x_body
 
-x_body:                                           ; preds = %x_body, %entry
-  %x = phi i64 [ %1, %entry ], [ %x_increment, %x_body ]
+x_body:                                           ; preds = %x_body, %entry.split
+  %x = phi i64 [ %1, %entry.split ], [ %x_increment, %x_body ]
   %7 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %x
   %8 = load float, float* %7, align 4, !llvm.mem.parallel_loop_access !1
   %9 = fmul fast float %8, %6
@@ -58,6 +64,9 @@ x_exit:                                           ; preds = %x_body
 ; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk2({ %f32Matrix*, %u8Matrix* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, %u8Matrix* }, { %f32Matrix*, %u8Matrix* }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, %u8Matrix* }, { %f32Matrix*, %u8Matrix* }* %0, i64 0, i32 1
@@ -70,8 +79,8 @@ entry:
   %val_y_step = zext i32 %columns1 to i64
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry.split
+  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %x_exit ]
   %9 = mul nuw nsw i64 %y, %val_y_step
   %10 = mul nuw nsw i64 %y, %mat_y_step
   br label %x_body
@@ -101,6 +110,9 @@ y_exit:                                           ; preds = %x_exit
 ; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk3({ %f32Matrix*, %f32Matrix* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 1
@@ -110,8 +122,8 @@ entry:
   %mat_y_step = zext i32 %columns to i64
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry.split
+  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %x_exit ]
   %8 = mul nuw nsw i64 %y, %mat_y_step
   br label %x_body
 
@@ -140,6 +152,9 @@ y_exit:                                           ; preds = %x_exit
 ; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk4({ %f32Matrix*, %f32Matrix*, i32 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %0, i64 0, i32 1
@@ -152,8 +167,8 @@ entry:
   %10 = icmp eq i32 %8, 0
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry.split
+  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %x_exit ]
   %11 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
@@ -213,6 +228,9 @@ y_exit:                                           ; preds = %x_exit
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @covariance(%u8Matrix* noalias nocapture) #2 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !2
   %2 = call %u0Matrix* @likely_new(i32 9504, i32 1, i32 %columns, i32 1, i32 1, i8* null)
@@ -231,8 +249,8 @@ entry:
   %11 = bitcast %u0Matrix* %10 to float*
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry.split
+  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %x_exit ]
   %12 = mul nuw nsw i64 %y, %4
   br label %x_body
 

@@ -10,6 +10,9 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: norecurse nounwind
 define private void @transpose_tmp_thunk0({ %f32Matrix*, %f32Matrix* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 1
@@ -22,8 +25,8 @@ entry:
   %src_y_step = zext i32 %columns1 to i64
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry.split
+  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %x_exit ]
   %9 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
@@ -54,6 +57,9 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @transpose(%f32Matrix* noalias nocapture) #2 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %1, align 4, !range !0
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 3

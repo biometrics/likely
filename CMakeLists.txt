@@ -75,6 +75,13 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -fno-rtti")
 endif()
 
+# Build Polly using the same compiler flags
+add_subdirectory(polly)
+include_directories(${PROJECT_SOURCE_DIR}/polly/include
+                    ${PROJECT_BINARY_DIR}/polly/include)
+set(LIKELY_LIBS ${LIKELY_LIBS} Polly)
+file(REMOVE ${PROJECT_SOURCE_DIR}/llvm/bin/update_check.py)
+
 # Put artifacts in the build directory root
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})

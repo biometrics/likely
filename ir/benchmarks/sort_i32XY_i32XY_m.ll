@@ -6,6 +6,9 @@ source_filename = "likely"
 ; Function Attrs: norecurse nounwind
 define private void @sort_tmp_thunk0({ %u32Matrix*, i32, i64, i64, i64, i64 }* noalias nocapture readonly, i64, i64) #0 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %0, i64 0, i32 0
   %4 = load %u32Matrix*, %u32Matrix** %3, align 8
   %5 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %0, i64 0, i32 1
@@ -16,8 +19,8 @@ entry:
   %8 = icmp eq i32 %6, 0
   br label %y_body
 
-y_body:                                           ; preds = %exit, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %exit ]
+y_body:                                           ; preds = %exit, %entry.split
+  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %exit ]
   br i1 %8, label %exit, label %true_entry.lr.ph
 
 true_entry.lr.ph:                                 ; preds = %y_body
@@ -80,6 +83,9 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 ; Function Attrs: nounwind
 define noalias %u32Matrix* @sort(%u32Matrix* noalias nocapture) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 4
   %len = load i32, i32* %1, align 4, !range !0
   %2 = zext i32 %len to i64

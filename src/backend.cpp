@@ -53,6 +53,9 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Vectorize.h>
+#include <polly/CodeGen/CodegenCleanup.h>
+#include <polly/LinkAllPasses.h>
+#include <polly/RegisterPasses.h>
 #include <cstdarg>
 #include <fstream>
 #include <iostream>
@@ -112,6 +115,7 @@ struct LikelyContext : public likely_settings
             initializeTransformUtils(Registry);
             initializeInstCombine(Registry);
             initializeTarget(Registry);
+            polly::initializePollyPasses(Registry);
 
             TM = getTargetMachine(false);
         }
@@ -170,6 +174,11 @@ struct LikelyContext : public likely_settings
             PM->add(createInstructionCombiningPass()); // Cleanup
             PM->add(createCFGSimplificationPass());
             PM->add(createReassociatePass());
+
+            // Polly
+            PM->add(polly::createCodePreparationPass());
+            polly::registerPollyPasses(*PM);
+            PM->add(polly::createCodegenCleanupPass());
 
             // Vectorize the loops
             if (optimization_level >= 2) {

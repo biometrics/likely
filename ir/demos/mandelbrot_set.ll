@@ -11,6 +11,9 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 
 define noalias %u8Matrix* @likely_test_function(%u0Matrix** nocapture readonly) {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = bitcast %u0Matrix** %0 to %u32Matrix**
   %2 = load %u32Matrix*, %u32Matrix** %1, align 8
   %3 = getelementptr inbounds %u32Matrix, %u32Matrix* %2, i64 0, i32 6, i64 0
@@ -54,8 +57,8 @@ entry:
   %33 = sitofp i32 %arg_1 to float
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry.split
+  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %x_exit ]
   %34 = uitofp i64 %y to float
   %35 = fmul fast float %34, %arg_5
   %36 = fdiv fast float %35, %33

@@ -10,6 +10,9 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: nounwind
 define noalias %f64Matrix* @min_max_loc(%f64Matrix* noalias nocapture readonly) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %1, align 4, !range !0
   %2 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 3
@@ -20,12 +23,12 @@ entry:
   %5 = mul nuw nsw i32 %3, %rows
   br label %true_entry
 
-true_entry:                                       ; preds = %true_entry, %entry
-  %6 = phi i32 [ 0, %entry ], [ %19, %true_entry ]
-  %7 = phi double [ 0x7FEFFFFFFFFFFFFF, %entry ], [ %15, %true_entry ]
-  %8 = phi i32 [ 0, %entry ], [ %14, %true_entry ]
-  %9 = phi double [ 0xFFEFFFFFFFFFFFFF, %entry ], [ %18, %true_entry ]
-  %10 = phi i32 [ 0, %entry ], [ %17, %true_entry ]
+true_entry:                                       ; preds = %true_entry, %entry.split
+  %6 = phi i32 [ 0, %entry.split ], [ %19, %true_entry ]
+  %7 = phi double [ 0x7FEFFFFFFFFFFFFF, %entry.split ], [ %15, %true_entry ]
+  %8 = phi i32 [ 0, %entry.split ], [ %14, %true_entry ]
+  %9 = phi double [ 0xFFEFFFFFFFFFFFFF, %entry.split ], [ %18, %true_entry ]
+  %10 = phi i32 [ 0, %entry.split ], [ %17, %true_entry ]
   %11 = zext i32 %6 to i64
   %12 = getelementptr %f64Matrix, %f64Matrix* %0, i64 0, i32 6, i64 %11
   %current-value = load double, double* %12, align 8

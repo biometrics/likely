@@ -11,6 +11,9 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @average(%u8Matrix* noalias nocapture readonly) #1 {
 entry:
+  br label %entry.split
+
+entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
   %2 = call %u0Matrix* @likely_new(i32 9504, i32 1, i32 %columns, i32 1, i32 1, i8* null)
@@ -26,8 +29,8 @@ entry:
   %10 = zext i32 %rows to i64
   br label %y_body
 
-y_body:                                           ; preds = %x_exit8, %entry
-  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit8 ]
+y_body:                                           ; preds = %x_exit8, %entry.split
+  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %x_exit8 ]
   %11 = mul nuw nsw i64 %y, %4
   br label %x_body7
 
