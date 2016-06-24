@@ -248,7 +248,7 @@ likely_mat likely_decode(likely_const_mat buffer, likely_type type)
     } catch (...) {}
 
     likely_ensure(result != NULL, "decode failure");
-    if (result && (result->type != type)) {
+    if (result && (type & likely_depth) && (result->type != type)) {
         likely_release_mat(result);
         result = NULL;
         likely_ensure(false, "decode type mismatch");
