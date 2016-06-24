@@ -14,9 +14,6 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @filter_2D(%u8Matrix* noalias nocapture readonly, %f32Matrix* noalias nocapture readonly) #0 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
   %3 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 4
@@ -43,8 +40,8 @@ entry.split:                                      ; preds = %entry
   %scevgep67 = bitcast i32* %scevgep6 to i8*
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry.split
-  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %y_body ]
+y_body:                                           ; preds = %y_body, %entry
+  %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
   %17 = mul i64 %y, %mat_y_step
   %uglygep8 = getelementptr i8, i8* %scevgep67, i64 %17
   call void @llvm.memset.p0i8.i64(i8* %uglygep8, i8 0, i64 %mat_y_step, i32 1, i1 false)

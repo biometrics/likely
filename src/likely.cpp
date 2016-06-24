@@ -65,6 +65,8 @@ static cl::opt<bool> LikelyRuntimeOnly("runtime-only", cl::desc("The compiler ca
 static cl::alias     LikelyRuntimeOnlyA("ro", cl::desc("Alias for -ro"), cl::aliasopt(LikelyRuntimeOnly));
 static cl::opt<bool> LikelyVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     LikelyVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(LikelyVerbose));
+static cl::opt<bool> LikelyPolly("polly", cl::desc("LLVM high-level loop and data-locality optimizations"));
+static cl::alias     LikelyPollyA("y", cl::desc("Alias for -polly"), cl::aliasopt(LikelyPolly));
 static cl::opt<string> LikelyPreprocess("preprocess", cl::desc("Command to run prior to input"));
 static cl::alias       LikelyPreprocessA("p", cl::desc("Alias for -preprocess"), cl::aliasopt(LikelyPreprocess));
 static cl::opt<int> LikelyOptimizationLevel("optimization-level", cl::desc("Compiler optimization level (0-2)"), cl::init(-1));
@@ -167,6 +169,7 @@ int main(int argc, char *argv[])
     settings.multicore     = LikelyMulticore;
     settings.heterogeneous = LikelyHeterogeneous;
     settings.runtime_only  = LikelyRuntimeOnly;
+    settings.polly         = LikelyPolly;
     if (LikelyOptimizationLevel >= 0)
         settings.optimization_level = LikelyOptimizationLevel;
     if (!LikelyInput.empty() && !LikelyCommand)

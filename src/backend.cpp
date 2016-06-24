@@ -80,14 +80,15 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
     settings.heterogeneous = false;
     settings.runtime_only = false;
     settings.verbose = verbose;
+    settings.polly = false;
     settings.module_id = "likely";
     return settings;
 }
 //! [likely_default_settings implementation.]
 
-ModulePass   *createAxisSubstitutionPass();       // axis_substitution.cpp
-LoopPass     *createLoopCollapsePass();           // loop_collapse.cpp
-ModulePass   *createMemoryManagementPass();       // memory_management.cpp
+ModulePass *createAxisSubstitutionPass(); // axis_substitution.cpp
+LoopPass   *createLoopCollapsePass();     // loop_collapse.cpp
+ModulePass *createMemoryManagementPass(); // memory_management.cpp
 
 namespace {
 
@@ -176,9 +177,11 @@ struct LikelyContext : public likely_settings
             PM->add(createReassociatePass());
 
             // Polly
-            PM->add(polly::createCodePreparationPass());
-            polly::registerPollyPasses(*PM);
-            PM->add(polly::createCodegenCleanupPass());
+            if (polly) {
+                PM->add(polly::createCodePreparationPass());
+                polly::registerPollyPasses(*PM);
+                PM->add(polly::createCodegenCleanupPass());
+            }
 
             // Vectorize the loops
             if (optimization_level >= 2) {

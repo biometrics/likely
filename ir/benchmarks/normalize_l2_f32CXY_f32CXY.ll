@@ -13,9 +13,6 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @normalize_l2(%f32Matrix* noalias nocapture readonly) #2 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %1, align 4, !range !0
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 3
@@ -26,9 +23,9 @@ entry.split:                                      ; preds = %entry
   %5 = mul nuw nsw i32 %3, %rows
   br label %true_entry
 
-true_entry:                                       ; preds = %true_entry, %entry.split
-  %6 = phi i32 [ 0, %entry.split ], [ %14, %true_entry ]
-  %7 = phi double [ 0.000000e+00, %entry.split ], [ %13, %true_entry ]
+true_entry:                                       ; preds = %true_entry, %entry
+  %6 = phi i32 [ 0, %entry ], [ %14, %true_entry ]
+  %7 = phi double [ 0.000000e+00, %entry ], [ %13, %true_entry ]
   %8 = zext i32 %6 to i64
   %9 = getelementptr %f32Matrix, %f32Matrix* %0, i64 0, i32 6, i64 %8
   %10 = load float, float* %9, align 4

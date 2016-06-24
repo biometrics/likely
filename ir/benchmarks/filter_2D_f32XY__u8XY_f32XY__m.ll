@@ -14,9 +14,6 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: norecurse nounwind
 define private void @filter_2D_tmp_thunk0({ %u8Matrix*, i32 }* noalias nocapture readonly, i64, i64) #2 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %u8Matrix*, i32 }, { %u8Matrix*, i32 }* %0, i64 0, i32 0
   %4 = load %u8Matrix*, %u8Matrix** %3, align 8
   %5 = getelementptr inbounds { %u8Matrix*, i32 }, { %u8Matrix*, i32 }* %0, i64 0, i32 1
@@ -29,9 +26,9 @@ entry.split:                                      ; preds = %entry
   %8 = trunc i32 %6 to i8
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry.split
-  %indvar = phi i64 [ 0, %entry.split ], [ %indvar.next, %y_body ]
-  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %y_body ]
+y_body:                                           ; preds = %y_body, %entry
+  %indvar = phi i64 [ 0, %entry ], [ %indvar.next, %y_body ]
+  %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
   %9 = add i64 %indvar, %1
   %10 = mul i64 %9, %mat_y_step
   %uglygep = getelementptr i8, i8* %scevgep1, i64 %10
@@ -50,9 +47,6 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 ; Function Attrs: norecurse nounwind
 define private void @filter_2D_tmp_thunk1({ %u8Matrix*, %u8Matrix*, i32, i32 }* noalias nocapture readonly, i64, i64) #2 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %u8Matrix*, %u8Matrix*, i32, i32 }, { %u8Matrix*, %u8Matrix*, i32, i32 }* %0, i64 0, i32 0
   %4 = load %u8Matrix*, %u8Matrix** %3, align 8
   %5 = getelementptr inbounds { %u8Matrix*, %u8Matrix*, i32, i32 }, { %u8Matrix*, %u8Matrix*, i32, i32 }* %0, i64 0, i32 1
@@ -71,8 +65,8 @@ entry.split:                                      ; preds = %entry
   %14 = sext i32 %10 to i64
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry.split
-  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry
+  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
   %15 = mul nuw nsw i64 %y, %src_y_step
   %16 = add nuw nsw i64 %y, %14
   %17 = mul nuw nsw i64 %16, %padded_y_step
@@ -103,9 +97,6 @@ y_exit:                                           ; preds = %x_exit
 ; Function Attrs: norecurse nounwind
 define private void @filter_2D_tmp_thunk2({ %f32Matrix*, %u8Matrix*, %f32Matrix*, i32, i32 }* noalias nocapture readonly, i64, i64) #2 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, %u8Matrix*, %f32Matrix*, i32, i32 }, { %f32Matrix*, %u8Matrix*, %f32Matrix*, i32, i32 }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, %u8Matrix*, %f32Matrix*, i32, i32 }, { %f32Matrix*, %u8Matrix*, %f32Matrix*, i32, i32 }* %0, i64 0, i32 1
@@ -129,8 +120,8 @@ entry.split:                                      ; preds = %entry
   %17 = icmp eq i32 %12, 0
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry.split
-  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry
+  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
   %18 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
@@ -195,9 +186,6 @@ y_exit:                                           ; preds = %x_exit
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @filter_2D(%u8Matrix* noalias nocapture, %f32Matrix* noalias nocapture) #0 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
   %3 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 4

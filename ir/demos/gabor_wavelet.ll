@@ -19,9 +19,6 @@ declare float @llvm.exp.f32(float) #1
 
 define noalias %f32Matrix* @likely_test_function(%u0Matrix** nocapture readonly) {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %1 = bitcast %u0Matrix** %0 to %u32Matrix**
   %2 = load %u32Matrix*, %u32Matrix** %1, align 8
   %3 = getelementptr inbounds %u32Matrix, %u32Matrix* %2, i64 0, i32 6, i64 0
@@ -70,8 +67,8 @@ entry.split:                                      ; preds = %entry
   %38 = fdiv fast float 0x401921FB60000000, %arg_5
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry.split
-  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry
+  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
   %39 = trunc i64 %y to i32
   %dy = sub i32 %39, %arg_1
   %40 = sitofp i32 %dy to float

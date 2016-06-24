@@ -13,9 +13,6 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @filter_2D(%f32Matrix* noalias nocapture readonly, %f32Matrix* noalias nocapture readonly) #0 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
   %3 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 4
@@ -42,8 +39,8 @@ entry.split:                                      ; preds = %entry
   %17 = shl nuw nsw i64 %mat_y_step, 2
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry.split
-  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %y_body ]
+y_body:                                           ; preds = %y_body, %entry
+  %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
   %18 = mul i64 %y, %mat_y_step
   %scevgep8 = getelementptr i32, i32* %scevgep7, i64 %18
   %scevgep89 = bitcast i32* %scevgep8 to i8*

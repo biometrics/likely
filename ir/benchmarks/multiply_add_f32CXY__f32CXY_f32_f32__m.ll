@@ -10,9 +10,6 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: norecurse nounwind
 define private void @multiply_add_tmp_thunk0({ %f32Matrix*, %f32Matrix*, float, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, float, float }, { %f32Matrix*, %f32Matrix*, float, float }* %0, i64 0, i32 0
   %4 = load %f32Matrix*, %f32Matrix** %3, align 8
   %5 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, float, float }, { %f32Matrix*, %f32Matrix*, float, float }* %0, i64 0, i32 1
@@ -31,8 +28,8 @@ entry.split:                                      ; preds = %entry
   %14 = mul i64 %13, %dst_x
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry.split
-  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %y_body ]
+y_body:                                           ; preds = %y_body, %entry
+  %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
   %15 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %y
   %16 = load float, float* %15, align 4, !llvm.mem.parallel_loop_access !1
   %17 = fmul fast float %16, %8
@@ -52,9 +49,6 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 ; Function Attrs: nounwind
 define noalias %f32Matrix* @multiply_add(%f32Matrix* noalias nocapture, float, float) #2 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
   %4 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 3

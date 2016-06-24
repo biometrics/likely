@@ -10,9 +10,6 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: nounwind
 define noalias %u8Matrix* @transpose(%u8Matrix* noalias nocapture readonly) #1 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %1 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %1, align 4, !range !0
   %2 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 3
@@ -24,8 +21,8 @@ entry.split:                                      ; preds = %entry
   %6 = bitcast %u0Matrix* %5 to i8*
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry.split
-  %y = phi i64 [ 0, %entry.split ], [ %y_increment, %x_exit ]
+y_body:                                           ; preds = %x_exit, %entry
+  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
   %7 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 

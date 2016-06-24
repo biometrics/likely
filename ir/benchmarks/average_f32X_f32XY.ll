@@ -21,34 +21,34 @@ entry:
   %7 = bitcast %u0Matrix* %5 to float*
   %8 = shl nuw nsw i64 %4, 2
   call void @llvm.memset.p0i8.i64(i8* %6, i8 0, i64 %8, i32 4, i1 false)
-  %9 = zext i32 %rows to i64
+  %9 = bitcast %u0Matrix* %2 to %f32Matrix*
+  %10 = zext i32 %rows to i64
   br label %y_body
 
-y_body:                                           ; preds = %entry, %x_exit8
-  %y = phi i64 [ %y_increment, %x_exit8 ], [ 0, %entry ]
-  %10 = mul nuw nsw i64 %y, %4
+y_body:                                           ; preds = %x_exit8, %entry
+  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit8 ]
+  %11 = mul nuw nsw i64 %y, %4
   br label %x_body7
 
 x_body7:                                          ; preds = %y_body, %x_body7
   %x9 = phi i64 [ %x_increment10, %x_body7 ], [ 0, %y_body ]
-  %11 = getelementptr float, float* %7, i64 %x9
-  %12 = load float, float* %11, align 4
-  %13 = add nuw nsw i64 %x9, %10
-  %14 = getelementptr %f32Matrix, %f32Matrix* %0, i64 0, i32 6, i64 %13
-  %15 = load float, float* %14, align 4
-  %16 = fadd fast float %15, %12
-  store float %16, float* %11, align 4
+  %12 = getelementptr float, float* %7, i64 %x9
+  %13 = load float, float* %12, align 4
+  %14 = add nuw nsw i64 %x9, %11
+  %15 = getelementptr %f32Matrix, %f32Matrix* %0, i64 0, i32 6, i64 %14
+  %16 = load float, float* %15, align 4
+  %17 = fadd fast float %16, %13
+  store float %17, float* %12, align 4
   %x_increment10 = add nuw nsw i64 %x9, 1
   %x_postcondition11 = icmp eq i64 %x_increment10, %4
   br i1 %x_postcondition11, label %x_exit8, label %x_body7
 
 x_exit8:                                          ; preds = %x_body7
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %9
+  %y_postcondition = icmp eq i64 %y_increment, %10
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit8
-  %17 = bitcast %u0Matrix* %2 to %f32Matrix*
   %18 = icmp eq i32 %rows, 1
   br i1 %18, label %Flow1, label %true_entry
 
@@ -58,7 +58,7 @@ true_entry:                                       ; preds = %y_exit
   br label %x_body15
 
 Flow1:                                            ; preds = %x_body15, %y_exit
-  ret %f32Matrix* %17
+  ret %f32Matrix* %9
 
 x_body15:                                         ; preds = %true_entry, %x_body15
   %x17 = phi i64 [ %x_increment18, %x_body15 ], [ 0, %true_entry ]
@@ -75,7 +75,7 @@ x_body15:                                         ; preds = %true_entry, %x_body
 declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) #0
 
 attributes #0 = { argmemonly nounwind }
-attributes #1 = { nounwind "polly-optimized" }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

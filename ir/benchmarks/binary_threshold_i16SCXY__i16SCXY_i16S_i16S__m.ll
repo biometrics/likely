@@ -10,9 +10,6 @@ declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i3
 ; Function Attrs: norecurse nounwind
 define private void @binary_threshold_tmp_thunk0({ %u16Matrix*, %u16Matrix*, i16, i16 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds { %u16Matrix*, %u16Matrix*, i16, i16 }, { %u16Matrix*, %u16Matrix*, i16, i16 }* %0, i64 0, i32 0
   %4 = load %u16Matrix*, %u16Matrix** %3, align 8
   %5 = getelementptr inbounds { %u16Matrix*, %u16Matrix*, i16, i16 }, { %u16Matrix*, %u16Matrix*, i16, i16 }* %0, i64 0, i32 1
@@ -31,8 +28,8 @@ entry.split:                                      ; preds = %entry
   %14 = mul i64 %13, %dst_x
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry.split
-  %y = phi i64 [ %1, %entry.split ], [ %y_increment, %y_body ]
+y_body:                                           ; preds = %y_body, %entry
+  %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
   %15 = getelementptr %u16Matrix, %u16Matrix* %6, i64 0, i32 6, i64 %y
   %16 = load i16, i16* %15, align 2, !llvm.mem.parallel_loop_access !1
   %17 = icmp sgt i16 %16, %8
@@ -52,9 +49,6 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 ; Function Attrs: nounwind
 define noalias %u16Matrix* @binary_threshold(%u16Matrix* noalias nocapture, i16 signext, i16 signext) #2 {
 entry:
-  br label %entry.split
-
-entry.split:                                      ; preds = %entry
   %3 = getelementptr inbounds %u16Matrix, %u16Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
   %4 = getelementptr inbounds %u16Matrix, %u16Matrix* %0, i64 0, i32 3
