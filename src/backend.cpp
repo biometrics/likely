@@ -1245,8 +1245,9 @@ struct ConstantMat : public likely_expression
                                       : (llvmType == likely_u16) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint16_t>((uint16_t*) &m->data, elements))
                                       : (llvmType == likely_u32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint32_t>((uint32_t*) &m->data, elements))
                                       : (llvmType == likely_u64) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint64_t>((uint64_t*) &m->data, elements))
-                                      : (llvmType == likely_f32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<float   >((float*)    &m->data, elements))
-                                      :                            ConstantDataArray::get(builder.module->context->context, ArrayRef<double  >((double*)   &m->data, elements)) };
+                                      : (llvmType == likely_f16) ? ConstantDataArray::getFP(builder.module->context->context, ArrayRef<uint16_t>((uint16_t*) &m->data, elements))
+                                      : (llvmType == likely_f32) ? ConstantDataArray::getFP(builder.module->context->context, ArrayRef<uint32_t>((uint32_t*) &m->data, elements))
+                                      :                            ConstantDataArray::getFP(builder.module->context->context, ArrayRef<uint64_t>((uint64_t*) &m->data, elements)) };
         Constant *const constantStruct = ConstantStruct::get(structType, values);
 
         stringstream name;
